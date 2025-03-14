@@ -1,0 +1,4 @@
+alias(
+  name = "gotopt2",
+  actual = "@multitool//tools/gotopt2",
+)
