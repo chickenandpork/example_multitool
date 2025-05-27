@@ -1,0 +1,41 @@
+name: Bazel build
+
+env:
+  TEST_TMPDIR: /tmp/bazel
+
+# yamllint disable-line rule:truthy
+on: [push]
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    steps:
+      -
+        name: Date-Based Cache key
+        # get a key showing the current week (ISO: yyyyWww)
+        #
+        # this causes cache to auto-flush weekly by reducing the retention horizon, unblocking
+        # autoprune of stale content.
+        id: week
+        run: echo "::set-output name=iso::$(date +'bazel-%YW%U')"
+      -
+        uses: bazel-contrib/setup-bazel@0.14.0
+        with:
+          # Cache bazel downloads via bazelisk
+          bazelisk-cache: true
+          # Store build cache per workflow.
+          disk-cache: ${{ steps.week.outputs.iso }}
+          # Share repository cache between workflows.
+          repository-cache: true
+      -
+        uses: actions/checkout@v4
+        # action runners have bazelisk: - uses: bazelbuild/setup-bazelisk@v2
+        # https://github.com/bazelbuild/bazel/issues/11062
+      -
+        run: bazel build --toolchain_resolution_debug='@@rules_multitool++multitool+multitool//tools/gotopt2:toolchain_type' //...
+      -
+        run: bazel shutdown
